@@ -7,6 +7,7 @@
         body { margin: 0; background: #000; overflow: hidden; font-family: 'Arial', sans-serif; cursor: default; }
         #video-container { position: relative; width: 100vw; height: 100vh; background: #000; }
 
+        /* Style de base des slides */
         .slide {
             position: absolute; width: 100%; height: 100%;
             opacity: 0;
@@ -14,27 +15,33 @@
             background-repeat: no-repeat;
             background-position: center;
             transition: opacity 1.5s ease-in-out, transform 10s linear;
-            transform: scale(1.1);
+            transform: scale(1.1); /* Effet de dé-zoom par défaut */
         }
 
         .slide.active { opacity: 1; transform: scale(1); }
 
+        /* Effet de zoom-in (inverse) pour certaines slides */
         .slide.zoom-in { transform: scale(1); }
         .slide.zoom-in.active { transform: scale(1.1); }
 
+        /* Cas particulier pour le logo final (s35) */
         #s35 { transition: opacity 1.5s ease-in-out, transform 3.33s linear !important; }
 
+        /* Overlay de lancement */
         #play-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.9);
             display: flex; justify-content: center; align-items: center; z-index: 100;
         }
 
-        button {
+        button#btnStart {
             padding: 20px 50px; font-size: 24px; cursor: pointer;
             background: #FFD700; border: none; border-radius: 50px; font-weight: bold;
             box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+            transition: transform 0.2s;
         }
+        button#btnStart:hover { transform: scale(1.05); }
 
+        /* Effets visuels (feu et particules) */
         #fire-glow {
             position: fixed; inset: 0;
             background: radial-gradient(circle, rgba(255,100,0,0.15) 0%, rgba(0,0,0,0) 70%);
@@ -48,25 +55,12 @@
         }
 
         .particle { position: absolute; background: #ffaa00; border-radius: 50%; pointer-events: none; z-index: 6; }
-
-        #controls {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            z-index: 100; display: none; align-items: center; gap: 15px;
-            background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 30px;
-            width: 80%; border: 1px solid rgba(255, 215, 0, 0.3);
-            transition: opacity 0.5s ease; opacity: 1;
-        }
-        
-        #controls.hidden { opacity: 0; pointer-events: none; }
-        #seekbar { flex-grow: 1; cursor: pointer; accent-color: #FFD700; }
-        #btnPause { background: #FFD700; border: none; padding: 5px 15px; border-radius: 15px; cursor: pointer; font-weight: bold; }
-        #time-display { color: #FFD700; font-family: monospace; min-width: 50px; }
     </style>
 </head>
 <body>
 
     <div id="play-overlay">
-        <button onclick="startEpic()">LANCER L'ÉPOPÉE RELIK</button>
+        <button id="btnStart" onclick="startEpic()">LANCER L'ÉPOPÉE RELIK</button>
     </div>
 
     <div id="fire-glow"></div>
@@ -106,24 +100,15 @@
         <div id="s30" class="slide" style="background-image: url('30 gros plan memorial.webp');"></div>
         <div id="s31" class="slide zoom-in" style="background-image: url('31 10 relik.png');"></div>
         <div id="s32" class="slide zoom-in" style="background-image: url('32 photo de groupe.png');"></div>
-        <div id="s33" class="slide" style="background-image: url('32.1 gros plan estade.JPG');"></div>
+        <div id="s33" class="slide" style="background-image: url('32.1 gros plan estade.JPG'); transform: scale(1);"></div>
         <div id="s35" class="slide zoom-in" style="background-image: url('35 logo clan.png');"></div>
-    </div>
-
-    <div id="controls">
-        <button onclick="togglePlay()" id="btnPause">PAUSE</button>
-        <input type="range" id="seekbar" value="0" step="0.1">
-        <span id="time-display">00:00</span>
     </div>
 
     <script>
         const music = document.getElementById('music');
         const container = document.getElementById('video-container');
-        const seekbar = document.getElementById('seekbar');
-        const timeDisplay = document.getElementById('time-display');
-        const btnPause = document.getElementById('btnPause');
-        const controls = document.getElementById('controls');
 
+        // Synchronisation Musique / Slides
         const timeline = [
             { time: 1,   slide: 's1' }, { time: 5,   slide: 's2' }, { time: 7,   slide: 's3' },
             { time: 13,  slide: 's4' }, { time: 19,  slide: 's5' }, { time: 21,  slide: 's6' },
@@ -135,10 +120,15 @@
             { time: 94,  slide: 's22' }, { time: 98,  slide: 's23' }, { time: 102, slide: 's24' },
             { time: 108, slide: 's25' }, { time: 112, slide: 's26' }, { time: 116, slide: 's27' },
             { time: 120, slide: 's28' }, { time: 126, slide: 's29' }, { time: 131, slide: 's30' },
-            { time: 151, slide: 's31' }, { time: 153, slide: 's32' }, { time: 156, slide: 's33' }, { time: 180, slide: 's35' }
+            { time: 151, slide: 's31' }, { time: 153, slide: 's32' }, { time: 156, slide: 's33' }, 
+            { time: 180, slide: 's35' }
         ];
 
+        let lastSlideId = null;
+
+        // Fonction pour créer les particules de feu
         function createParticle() {
+            if (music.paused) return; 
             const p = document.createElement('div');
             p.className = 'particle';
             const size = Math.random() * 4 + 2 + 'px';
@@ -152,39 +142,38 @@
             ], { duration: Math.random() * 3000 + 2000 }).onfinish = () => p.remove();
         }
 
+        // Lancement de l'expérience
         function startEpic() {
             document.getElementById('play-overlay').style.display = 'none';
-            music.play().catch(() => console.log("Audio bloqué ou absent"));
-            document.getElementById('controls').style.display = 'flex';
+            music.play().catch(() => console.log("Erreur lecture audio"));
             setInterval(createParticle, 200);
             requestAnimationFrame(render);
         }
 
-        music.addEventListener('timeupdate', () => {
-            if (!isNaN(music.duration)) {
-                seekbar.value = (music.currentTime / music.duration) * 100;
-                let mins = Math.floor(music.currentTime / 60);
-                let secs = Math.floor(music.currentTime % 60);
-                timeDisplay.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        // Gestion de la touche ESPACE pour pause/lecture
+        window.addEventListener('keydown', (e) => {
+            if (e.code === "Space") {
+                e.preventDefault(); 
+                if (music.paused) { music.play(); } 
+                else { music.pause(); }
             }
         });
 
-        seekbar.addEventListener('input', () => {
-            music.currentTime = (seekbar.value / 100) * music.duration;
-        });
-
-        function togglePlay() {
-            if (music.paused) { music.play(); btnPause.innerText = "PAUSE"; }
-            else { music.pause(); btnPause.innerText = "PLAY"; }
-        }
-
+        // Moteur de rendu (mise à jour des slides)
         function render() {
             const currentTime = music.currentTime;
+            // On trouve la slide correspondant au temps actuel
             const currentEvent = [...timeline].reverse().find(e => currentTime >= e.time);
-            if (currentEvent) {
-                document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
-                const activeSlide = document.getElementById(currentEvent.slide);
-                if (activeSlide) activeSlide.classList.add('active');
+            
+            if (currentEvent && currentEvent.slide !== lastSlideId) {
+                const oldSlide = document.querySelector('.slide.active');
+                if (oldSlide) oldSlide.classList.remove('active');
+                
+                const newSlide = document.getElementById(currentEvent.slide);
+                if (newSlide) {
+                    newSlide.classList.add('active');
+                    lastSlideId = currentEvent.slide;
+                }
             }
             requestAnimationFrame(render);
         }
