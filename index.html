@@ -24,9 +24,6 @@
         .slide.zoom-in { transform: scale(1); }
         .slide.zoom-in.active { transform: scale(1.1); }
 
-        /* Cas particulier pour le logo final (s35) */
-        #s35 { transition: opacity 1.5s ease-in-out, transform 3.33s linear !important; }
-
         /* Overlay de lancement */
         #play-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.9);
@@ -101,13 +98,14 @@
         <div id="s31" class="slide zoom-in" style="background-image: url('31 10 relik.png');"></div>
         <div id="s32" class="slide zoom-in" style="background-image: url('32 photo de groupe.png');"></div>
         <div id="s33" class="slide" style="background-image: url('32.1 gros plan estade.jpg'); transform: scale(1);"></div>
+        <div id="s_black" class="slide" style="background-color: black;"></div>
     </div>
 
     <script>
         const music = document.getElementById('music');
         const container = document.getElementById('video-container');
 
-        // Synchronisation Musique / Slides
+        // TIMELINE : Associe le temps (secondes) à l'ID de l'image
         const timeline = [
             { time: 1,   slide: 's1' }, { time: 5,   slide: 's2' }, { time: 7,   slide: 's3' },
             { time: 13,  slide: 's4' }, { time: 19,  slide: 's5' }, { time: 21,  slide: 's6' },
@@ -120,11 +118,11 @@
             { time: 108, slide: 's25' }, { time: 112, slide: 's26' }, { time: 116, slide: 's27' },
             { time: 120, slide: 's28' }, { time: 126, slide: 's29' }, { time: 131, slide: 's30' },
             { time: 151, slide: 's31' }, { time: 153, slide: 's32' }, { time: 156, slide: 's33' },
+            { time: 185, slide: 's_black' } 
         ];
 
         let lastSlideId = null;
 
-        // Fonction pour créer les particules de feu
         function createParticle() {
             if (music.paused) return; 
             const p = document.createElement('div');
@@ -140,33 +138,33 @@
             ], { duration: Math.random() * 3000 + 2000 }).onfinish = () => p.remove();
         }
 
-        // Lancement de l'expérience
         function startEpic() {
             document.getElementById('play-overlay').style.display = 'none';
-            music.play().catch(() => console.log("Erreur lecture audio"));
+            music.play().catch(() => console.log("L'audio nécessite une interaction"));
             setInterval(createParticle, 200);
             requestAnimationFrame(render);
         }
 
-        // Gestion de la touche ESPACE pour pause/lecture
+        // --- CONTRÔLES CLAVIER SECRETS ---
         window.addEventListener('keydown', (e) => {
-            if (e.code === "Space") {
-                e.preventDefault(); 
-                if (music.paused) { music.play(); } 
-                else { music.pause(); }
+            if (e.code === "Space") { // Espace = Pause/Play
+                e.preventDefault();
+                music.paused ? music.play() : music.pause();
+            }
+            if (e.code === "ArrowRight") { // Flèche Droite = Avancer 10s
+                music.currentTime += 10;
+            }
+            if (e.code === "ArrowLeft") { // Flèche Gauche = Reculer 10s
+                music.currentTime -= 10;
             }
         });
 
-        // Moteur de rendu (mise à jour des slides)
         function render() {
             const currentTime = music.currentTime;
-            // On trouve la slide correspondant au temps actuel
             const currentEvent = [...timeline].reverse().find(e => currentTime >= e.time);
             
             if (currentEvent && currentEvent.slide !== lastSlideId) {
-                const oldSlide = document.querySelector('.slide.active');
-                if (oldSlide) oldSlide.classList.remove('active');
-                
+                document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
                 const newSlide = document.getElementById(currentEvent.slide);
                 if (newSlide) {
                     newSlide.classList.add('active');
